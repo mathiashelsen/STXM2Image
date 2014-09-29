@@ -55,6 +55,7 @@ int drawMask( double *** mask, int sizeX, int sizeY );
 int extractMask( rawData * data, double *** mask );
 int calcFlatParams( normalizedData * data, double *mu, double *sigma);
 int statisticalAnalysis( normalizedData * data );
+void plotStatic( normalizedData *data);
 
 int freeRawData( rawData * data );
 int freeNormalizedData( normalizedData * data );
@@ -105,7 +106,7 @@ int main(int argc, char **argv)
     shiftMeanEdge( &raw, &mask );
     //shiftQuantileEdge( &raw, &mask );
 
-    subtractAvgPP( &raw );
+    //subtractAvgPP( &raw );
     if( pixels > 0 )
     {
         averageGaussian(&raw, sigmaSmooth, pixels);
@@ -474,7 +475,8 @@ int createHistograms( rawData * data, normalizedData * result, int normChannel )
     int i, j, k;
     for( i = 0; i < data->nChannels; i++ )
     {
-        result->minPixelVal[i] = result->maxPixelVal[i];
+        result->minPixelVal[i] = result->normalizedDataArray[i][0][0];
+        result->maxPixelVal[i] = result->normalizedDataArray[i][0][0];
         for( j = 0; j < data->sizeX; j++ )
         {
             for( k = 0; k < data->sizeY; k++ )
@@ -873,7 +875,6 @@ int drawChannelFit( normalizedData * data, int channelIndex , double offset, dou
 int drawChannelFitGlobal( normalizedData * data, int channelIndex, double mu, double sigma,
         double offset, double scale )
 {
-
     MagickWand *m_wand = NULL;
     PixelWand *p_wand = NULL;
     PixelIterator *iterator = NULL;
@@ -897,7 +898,7 @@ int drawChannelFitGlobal( normalizedData * data, int channelIndex, double mu, do
         {
             x = data->normalizedDataArray[channelIndex][i][j];
 
-            gray = (int) (255.0 * 0.5 * (1.0 + gsl_sf_erf( (x - mu - offset) / (1.4142135623730950488 * sigma ) ) ) );
+            gray = (int) (255.0 * 0.5 * (1.0 + gsl_sf_erf( (x - mu - offset) / (1.4142135623730950488 * sigma * scale ) ) ) );
             sprintf(hex, "#%02x%02x%02x",gray,gray,gray);
             PixelSetColor(pixels[i], hex);
         }
@@ -1091,4 +1092,21 @@ int statisticalAnalysis( normalizedData * data )
     fclose( statFile );
 
     return 0;
+}
+
+void plotStatic( normalizedData *data)
+{
+    double **avg = malloc(sizeof(double *)*data->sizeX);
+    int i =0;
+    for( i = 0; i < data->sizeX ; i++ )
+    {
+	avg[i] = malloc(sizeof(double)*data->sizeY);
+    }
+
+
+
+    for( i = 0; i < data->sizeX ; i++ )
+    {
+	free(avg[i]);
+    }
 }
