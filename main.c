@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     shiftMeanEdge( &raw, &mask );
     //shiftQuantileEdge( &raw, &mask );
 
-    //subtractAvgPP( &raw );
+    subtractAvgPP( &raw );
     if( pixels > 0 )
     {
         averageGaussian(&raw, sigmaSmooth, pixels);
@@ -149,6 +149,9 @@ int main(int argc, char **argv)
             drawChannelFitGlobal( &norm, i, mu, sigma, offset, scale );
         }
     }
+
+    plotStatic( &norm );
+
     fclose(histoFile);
     fclose(statFile);
     freeRawData( &raw );
@@ -1097,13 +1100,100 @@ int statisticalAnalysis( normalizedData * data )
 void plotStatic( normalizedData *data)
 {
     double **avg = malloc(sizeof(double *)*data->sizeX);
-    int i =0;
+    int i =0, j = 0, k = 0;
     for( i = 0; i < data->sizeX ; i++ )
     {
 	avg[i] = malloc(sizeof(double)*data->sizeY);
+	for( j = 0; j < data->sizeY; j++ )
+	{
+	    avg[i][j] = 0.0;
+	}
+    }
+
+    for( i = 0 ; i < data->nChannels; i++ )
+    {
+	for( j = 0 ; j < data->sizeX; j++ )
+	{
+	    for( k = 0 ; k < data->sizeY; k++ )
+	    {
+		avg[j][k] += data->normalizedDataArray[i][j][k];
+	    }
+	}
     }
 
 
+    double maxVal, minVal;
+    maxVal = avg[0][0];
+    minVal = avg[0][0];
+
+    for(i = 0; i < data->sizeX; i++ )
+    {
+	for(j = 0; j < data ->sizeY; j++ )
+	{
+	    maxVal = (maxVal > avg[i][j]) ? maxVal : avg[i][j];
+	    minVal = (minVal < avg[i][j]) ? minVal : avg[i][j];
+	}
+    }	
+    gsl_histogram *tmp = gsl_histogram_alloc( data->sizeX * data->sizeY / 10 );
+    gsl_histogram_set_ranges_uniform( tmp, minVal, maxVal );
+    for(i = 0; i < data->sizeX; i++ )
+    {
+	for(j = 0; j < data ->sizeY; j++ )
+	{
+	    gsl_histogram_increment( tmp, avg[i][j] );
+	}
+    }	
+
+    FILE *histoFile = fopen("static_histo.dat", "w");
+    double center, val, upper, lower;
+    for( j = 0; j < gsl_histogram_bins( tmp ) ;  j++ )
+    {
+        gsl_histogram_get_range( tmp, j, &lower, &upper );
+        center = 0.5 * ( upper + lower );
+        val = gsl_histogram_get( tmp, j);
+        fprintf( histoFile, "%e\t%e\n", center, val );
+    }
+    fclose(histoFile);
+
+    double mu = 1.43835e8;
+    double sigma = 1.0e6;
+
+    MagickWand *m_wand = NULL;
+    PixelWand *p_wand = NULL;
+    PixelIterator *iterator = NULL;
+    PixelWand **pixels = NULL;
+    int gray;
+    char hex[128];
+    double x;
+
+    MagickWandGenesis();
+
+    p_wand = NewPixelWand();
+    PixelSetColor(p_wand, "white");
+    m_wand = NewMagickWand();
+    MagickNewImage(m_wand, data->sizeX, data->sizeY, p_wand);
+    iterator = NewPixelIterator(m_wand);
+    
+    for(j=0; j< data->sizeX; j++)
+    {
+        pixels=PixelGetNextIteratorRow(iterator,(size_t*) &i);
+        for(i = 0; i< data->sizeY; i++)
+        {
+            x = avg[i][j];
+
+            gray = (int) (255.0 * 0.5 * (1.0 + gsl_sf_erf( (x - mu) / (1.4142135623730950488 * sigma) ) ) );
+            sprintf(hex, "#%02x%02x%02x",gray,gray,gray);
+            PixelSetColor(pixels[i], hex);
+        }
+        PixelSyncIterator(iterator);
+    }
+    char filename[64];
+    sprintf( filename, "static_image.gif");
+    MagickWriteImage(m_wand, filename);
+
+    iterator = DestroyPixelIterator(iterator);
+    DestroyMagickWand(m_wand);
+    MagickWandTerminus();
 
     for( i = 0; i < data->sizeX ; i++ )
     {
