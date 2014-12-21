@@ -139,7 +139,7 @@ void importData(const char*filename, std::vector<Channel *> *channels)
     delete[] buffer2;
 };
 
-void Channel::drawChannel( const char *filename, int(* transferFunc)(double) )
+void Channel::drawChannel( const char *filename, int(* transferFunc)(double, void *args), void *funcArgs )
 {
 
 };

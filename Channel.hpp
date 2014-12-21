@@ -26,7 +26,7 @@ public:
     void operator/=(Channel &B); 
 
     void printParams() { std::cout << rows << ", " << cols << std::endl; } ;
-    void drawChannel( const char *filename, int(* transferFunc)(double) );
+    void drawChannel( const char *filename, int(* transferFunc)(double, void *args), void *funcArgs );
 };
 
 void importData(const char*filename, std::vector<Channel *> *channels);
