@@ -35,7 +35,7 @@ void Channel::transferData(uint32_t *_I)
     std = sqrt(std);
 };
 
-void Channel::operator+=(Channel &B)
+void Channel::operator+=(const Channel &B)
 {
     assert(cols == B.cols);
     assert(rows == B.rows);
@@ -52,12 +52,12 @@ void Channel::operator+=(Channel &B)
     }
 };
 
-void Channel::operator-=(Channel &B)
+void Channel::operator-=(const Channel &B)
 {
     assert(cols == B.cols);
     assert(rows == B.rows);
-    max = I[0]+B.I[0];
-    min = I[0]+B.I[0];
+    max = I[0]-B.I[0];
+    min = I[0]-B.I[0];
     for(int i = 0; i < cols; i++ )
     {
 	for(int j = 0; j < rows; j++)
@@ -69,7 +69,7 @@ void Channel::operator-=(Channel &B)
     }
 };
 
-void Channel::operator*=(Channel &B)
+void Channel::operator*=(const Channel &B)
 {
     assert(cols == B.cols);
     assert(rows == B.rows);
@@ -86,7 +86,7 @@ void Channel::operator*=(Channel &B)
     }
 };
 
-void Channel::operator/=(Channel &B)
+void Channel::operator/=(const Channel &B)
 {
     assert(cols == B.cols);
     assert(rows == B.rows);
@@ -103,6 +103,22 @@ void Channel::operator/=(Channel &B)
     }
 };
 
+void Channel::operator=(const Channel &B)
+{
+    if( this != &B )
+    {
+	assert( rows == B.rows );
+	assert( cols == B.cols );
+
+	for(int i = 0; i < rows*cols; i++)
+	{
+	    I[i] = B.I[i];
+	}
+	min = B.min;
+	max = B.max;
+    }
+};
+
 void importData(const char*filename, std::vector<Channel *> *channels)
 {
     FILE *datafile = fopen(filename, "r");
@@ -112,9 +128,9 @@ void importData(const char*filename, std::vector<Channel *> *channels)
     uint8_t bufferSize3[4] = {0, 0, 0, 0};
 
     rewind(datafile);
-    fread( bufferSize1, 1, sizeof(bufferSize1), datafile);
-    fread( bufferSize2, 1, sizeof(bufferSize1), datafile);
-    fread( bufferSize3, 1, sizeof(bufferSize1), datafile);
+    assert( fread( bufferSize1, 1, sizeof(bufferSize1), datafile) );
+    assert( fread( bufferSize2, 1, sizeof(bufferSize1), datafile) );
+    assert( fread( bufferSize3, 1, sizeof(bufferSize1), datafile) );
 
     int size1, size2, size3, totalsize;
     int multiplier[4] = {16777216, 65536, 256, 1};
@@ -139,7 +155,7 @@ void importData(const char*filename, std::vector<Channel *> *channels)
         return;
     }
 
-    fread( buffer, 1, totalsize , datafile );
+    assert( fread( buffer, 1, totalsize , datafile ) );
 
     uint32_t *buffer2;
     buffer2 = new uint32_t[totalsize/4];
@@ -239,7 +255,6 @@ void Channel::scaleMean(Channel *mask)
     }
 
     norm = (double)Nvals/sum;
-    std::cout << max << ", " << min << ", " << norm << std::endl;
     max *= norm;
     min *= norm;
     for(int i = 0; i < (rows*cols); i++)
@@ -247,3 +262,41 @@ void Channel::scaleMean(Channel *mask)
 	I[i] *= norm;
     }
 }
+
+void Channel::extractHistogram(double **x, double **pdf, double **cdf, double *mu, double *sigma, int bins)
+{
+    acc tmpAcc(tag::density::num_bins = bins, tag::density::cache_size = rows*cols);
+    for(int i = 0; i < (rows*cols); i++)
+    {
+	tmpAcc(I[i]);
+    } 
+    histogram_type hist = density(tmpAcc);
+    *x = new double[bins];    
+    *pdf = new double[bins];
+    *cdf = new double[bins];
+
+    (*cdf)[0] = 0.0;
+    (*pdf)[0] = hist[0].second;
+    (*x)[0] = hist[0].first;
+    for(int i = 1; i < bins; i++)
+    {
+	(*x)[i] = hist[i].first;
+	(*pdf)[i] = hist[i].second;
+	(*cdf)[i] = (*cdf)[i-1] + (*pdf)[i];
+    }
+
+    *mu = mean(tmpAcc);
+    *sigma = sqrt(moment<2>(tmpAcc));
+};
+
+void Channel::extractStats( double *stats )
+{
+    accstat tmpAcc;
+    for(int i = 0; i < (rows*cols); i++)
+    {
+	tmpAcc(I[i]);
+    } 
+    stats[0] = mean(tmpAcc);
+    stats[1] = sqrt(moment<2>(tmpAcc));
+
+};
