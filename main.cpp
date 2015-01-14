@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     char filename[1024];
     for(unsigned int i = 0; i < channels.size(); i++)
     {
-	a = channels.at(0);
+	a = channels.at(i);
 	a->scaleMean(&mask);
 	*a -= staticImage;
 	a->extractStats( params );
