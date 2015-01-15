@@ -47,12 +47,14 @@ public:
     void operator*=(const Channel &B); 
     void operator/=(const Channel &B); 
     void operator=(const Channel &B);
+    void operator/=(const double s);
 
     void drawChannel( const char *filename, int(* transferFunc)(double, void *args), void *funcArgs );
     void toMask(double quantile);
     void scaleMean(Channel *mask);
     void extractHistogram(double **x, double **pdf, double **cdf, double *mu, double *sigma, int bins);
     void extractStats( double *stats );
+    void extractMaskedStats( double *stats, Channel *mask );
 
     double getMax() { return max; };
     double getMin() { return min; };

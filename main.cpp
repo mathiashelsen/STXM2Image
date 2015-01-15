@@ -35,32 +35,47 @@ int main(int argc, char **argv)
     Channel *a = channels.at(0);
     Channel staticImage(a->getRows(), a->getCols());
     Channel mask(a->getRows(), a->getCols());
+    Channel ref(a->getRows(), a->getCols());
 
     for(unsigned int i = 0; i < channels.size(); i++)
     {
 	a = channels.at(i);
-	staticImage += *a;
+	mask += *a;
     }
-
-    staticImage.drawChannel("static_image.gif", linearMapping, &staticImage);
-    mask = staticImage;
     mask.toMask(0.6);
     mask.drawChannel("mask.gif", linearMapping, &mask);
 
-    staticImage.scaleMean(&mask);
+    for(unsigned int i = 0; i < channels.size(); i++)
+    {
+	a = channels.at(i);
+	a->scaleMean(&mask);
+	staticImage += *a;
+    }
+
+    staticImage /= (double) channels.size();
+    staticImage.drawChannel("static_image.gif", linearMapping, &staticImage);
 
     double params[2];
     char filename[1024];
     for(unsigned int i = 0; i < channels.size(); i++)
     {
 	a = channels.at(i);
-	a->scaleMean(&mask);
 	*a -= staticImage;
-	a->extractStats( params );
-	//params[1]*=0.8;
+	a->scaleMean(&mask);
+	ref += *a;
+    }
+    ref /= (double) channels.size();
+    ref.extractStats(params);
+    ref.drawChannel("ref_image.gif", erfMapping, (void *)params);
+    double sigma = params[1]*((double) channels.size());
+
+    for(unsigned int i = 0; i < channels.size(); i++)
+    {
+	a = channels.at(i);
+	a->extractMaskedStats(params, &mask);
+	//params[1] = sigma;
 	sprintf(filename, "image_%03d.gif", i);
 	a->drawChannel(filename, erfMapping, (void *)params);
-
     }
  
     return 0;

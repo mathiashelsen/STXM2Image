@@ -5,6 +5,7 @@ Channel::Channel(int _rows, int _cols)
     rows = _rows;
     cols = _cols;
     I = new double[rows*cols];
+    bzero(I, sizeof(double)*rows*cols);
 };
 
 Channel::~Channel()
@@ -118,6 +119,16 @@ void Channel::operator=(const Channel &B)
 	max = B.max;
     }
 };
+
+void Channel::operator/=(const double s)
+{
+    for(int i = 0; i < (rows*cols); i++)
+    {
+	I[i] /= s;
+    }
+    max /= s;
+    min /= s;
+}
 
 void importData(const char*filename, std::vector<Channel *> *channels)
 {
@@ -300,3 +311,15 @@ void Channel::extractStats( double *stats )
     stats[1] = sqrt(moment<2>(tmpAcc));
 
 };
+
+void Channel::extractMaskedStats( double *stats, Channel *mask )
+{
+    accstat tmpAcc;
+    for(int i = 0; i < (rows*cols); i++)
+    {
+	if(mask->I[i] == 1.0)
+	    tmpAcc(I[i]);
+    } 
+    stats[0] = mean(tmpAcc);
+    stats[1] = sqrt(moment<2>(tmpAcc));
+}
